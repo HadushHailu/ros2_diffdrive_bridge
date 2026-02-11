@@ -49,7 +49,7 @@ class DiffDriveSerialBridge(Node):
 
         self.last_sent = None
         self.last_sent_time = time.time()
-        self.heartbeat_period = 0.5  # seconds
+        self.heartbeat_period = 0.1  # seconds
 
 
         self.sub = self.create_subscription(Twist, '/cmd_vel', self.on_cmd, 10)
