@@ -55,6 +55,9 @@ class DiffDriveSerialBridge(Node):
         self.heartbeat_period = 0.1  # seconds
         self.rx_buf = bytearray()
 
+        # Time sync: offset = ROS_time - Arduino_time (in seconds)
+        self.time_offset = None
+        self.last_arduino_time = None  # for detecting Arduino resets (micros rollover)
 
         self.imu_pub = self.create_publisher(Imu, '/imu/data_raw', 10)
         self.sub = self.create_subscription(Twist, '/cmd_vel', self.on_cmd, 10)
@@ -138,39 +141,64 @@ class DiffDriveSerialBridge(Node):
             return
 
         parts = line.split(',')
-        if len(parts) != 11:
+        if len(parts) != 12:  # I,timestamp,ax,ay,az,gx,gy,gz,qw,qx,qy,qz
             return
 
         try:
-            ax = float(parts[1])
-            ay = float(parts[2])
-            az = float(parts[3])
-            gx = float(parts[4])
-            gy = float(parts[5])
-            gz = float(parts[6])
-            qw = float(parts[7])
-            qx = float(parts[8])
-            qy = float(parts[9])
-            qz = float(parts[10])
+            arduino_time_us = int(parts[1])
+            ax = float(parts[2])
+            ay = float(parts[3])
+            az = float(parts[4])
+            gx = float(parts[5])
+            gy = float(parts[6])
+            gz = float(parts[7])
+            qw = float(parts[8])
+            qx = float(parts[9])
+            qy = float(parts[10])
+            qz = float(parts[11])
         except ValueError:
             return
 
+        # Convert Arduino micros to seconds
+        arduino_time_sec = arduino_time_us / 1_000_000.0
+        ros_now = self.get_clock().now()
+        ros_now_sec = ros_now.nanoseconds / 1e9
+
+        # Detect Arduino reset (micros rollover after ~71 minutes or actual reset)
+        if self.last_arduino_time is not None and arduino_time_sec < self.last_arduino_time - 1.0:
+            self.time_offset = None  # force re-sync
+            self.get_logger().warn("Arduino time reset detected, re-syncing")
+
+        self.last_arduino_time = arduino_time_sec
+
+        # Establish or update time offset (ROS_time - Arduino_time)
+        if self.time_offset is None:
+            self.time_offset = ros_now_sec - arduino_time_sec
+            self.get_logger().info(f"Time sync established: offset = {self.time_offset:.3f}s")
+
+        # Compute synchronized timestamp
+        synced_time_sec = arduino_time_sec + self.time_offset
+        synced_sec = int(synced_time_sec)
+        synced_nsec = int((synced_time_sec - synced_sec) * 1e9)
+
         msg = Imu()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp.sec = synced_sec
+        msg.header.stamp.nanosec = synced_nsec
         msg.header.frame_id = self.imu_frame_id
 
+        # IMU is mounted upside down - flip Y and Z axes (180° rotation around X)
         msg.orientation.w = qw
         msg.orientation.x = qx
-        msg.orientation.y = qy
-        msg.orientation.z = qz
+        msg.orientation.y = -qy  # flip
+        msg.orientation.z = -qz  # flip
 
         msg.angular_velocity.x = gx
-        msg.angular_velocity.y = gy
-        msg.angular_velocity.z = gz
+        msg.angular_velocity.y = -gy  # flip
+        msg.angular_velocity.z = -gz  # flip
 
         msg.linear_acceleration.x = ax
-        msg.linear_acceleration.y = ay
-        msg.linear_acceleration.z = az
+        msg.linear_acceleration.y = -ay  # flip
+        msg.linear_acceleration.z = -az  # flip (gravity should now be +9.8 in Z)
 
         msg.orientation_covariance = [-1.0] * 9
         msg.angular_velocity_covariance = [-1.0] * 9

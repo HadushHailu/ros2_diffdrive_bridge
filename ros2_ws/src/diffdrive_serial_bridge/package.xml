@@ -4,12 +4,13 @@
   <name>diffdrive_serial_bridge</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="hadush.gebrerufael@corteva.com">hadush</maintainer>
+  <maintainer email="hadush.gebrerufael@gmail.com">hadush</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
+  <exec_depend>v4l2_camera</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

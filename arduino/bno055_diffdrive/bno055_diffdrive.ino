@@ -40,10 +40,12 @@ void setup() {
   delay(200);
   Serial.println("# Ready. Send: M,<L>,<R>  e.g. M,150,150");
 
-  imu_ok = bno.begin();
+  // Use ACCGYRO mode for raw accel+gyro (no internal fusion)
+  // This is what VIO systems need - not NDOF which does internal fusion
+  imu_ok = bno.begin(Adafruit_BNO055::OPERATION_MODE_ACCGYRO);
   if (imu_ok) {
     bno.setExtCrystalUse(true);
-    Serial.println("# BNO055 OK");
+    Serial.println("# BNO055 OK (ACCGYRO mode)");
   } else {
     Serial.println("# BNO055 not detected");
   }
@@ -97,20 +99,25 @@ void handle(const char* line) {
 }
 
 void publishImu() {
-  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  unsigned long t_us = micros();  // capture timestamp first
+  // Use VECTOR_ACCELEROMETER (raw with gravity), NOT VECTOR_LINEARACCEL (gravity removed)
+  // VIO systems need gravity for orientation reference
+  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
   imu::Quaternion quat = bno.getQuat();
 
+  // Format: I,<timestamp_us>,ax,ay,az,gx,gy,gz,qw,qx,qy,qz
   Serial.print("I,");
-  Serial.print(accel.x(), 6); Serial.print(',');
-  Serial.print(accel.y(), 6); Serial.print(',');
-  Serial.print(accel.z(), 6); Serial.print(',');
-  Serial.print(gyro.x(), 6);  Serial.print(',');
-  Serial.print(gyro.y(), 6);  Serial.print(',');
-  Serial.print(gyro.z(), 6);  Serial.print(',');
-  Serial.print(quat.w(), 6);  Serial.print(',');
-  Serial.print(quat.x(), 6);  Serial.print(',');
-  Serial.print(quat.y(), 6);  Serial.print(',');
+  Serial.print(t_us);            Serial.print(',');
+  Serial.print(accel.x(), 6);    Serial.print(',');
+  Serial.print(accel.y(), 6);    Serial.print(',');
+  Serial.print(accel.z(), 6);    Serial.print(',');
+  Serial.print(gyro.x(), 6);     Serial.print(',');
+  Serial.print(gyro.y(), 6);     Serial.print(',');
+  Serial.print(gyro.z(), 6);     Serial.print(',');
+  Serial.print(quat.w(), 6);     Serial.print(',');
+  Serial.print(quat.x(), 6);     Serial.print(',');
+  Serial.print(quat.y(), 6);     Serial.print(',');
   Serial.print(quat.z(), 6);
   Serial.println();
 }
