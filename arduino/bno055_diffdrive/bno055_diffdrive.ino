@@ -1,3 +1,7 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+
 // ===== Left L298N =====
 const int L_ENA = 5;   // PWM
 const int L_IN1 = 8;
@@ -14,11 +18,16 @@ const int R_ENB = 9;   // PWM
 const int R_IN3 = 12;
 const int R_IN4 = 13;
 
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+bool imu_ok = false;
+
 char rx[64];
 size_t rx_len = 0;
 unsigned long lastCmdMs = 0;
 const unsigned long TIMEOUT_MS = 300;
 const int MAX_PWM = 120;
+const unsigned long IMU_PERIOD_MS = 20; // 50 Hz
+unsigned long lastImuMs = 0;
 
 void setup() {
   pinMode(L_ENA, OUTPUT); pinMode(L_IN1, OUTPUT); pinMode(L_IN2, OUTPUT);
@@ -30,6 +39,14 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("# Ready. Send: M,<L>,<R>  e.g. M,150,150");
+
+  imu_ok = bno.begin();
+  if (imu_ok) {
+    bno.setExtCrystalUse(true);
+    Serial.println("# BNO055 OK");
+  } else {
+    Serial.println("# BNO055 not detected");
+  }
 
   stopMotors();
   lastCmdMs = millis();
@@ -56,6 +73,11 @@ void loop() {
   if (millis() - lastCmdMs > TIMEOUT_MS) {
     stopMotors();
   }
+
+  if (imu_ok && (millis() - lastImuMs >= IMU_PERIOD_MS)) {
+    publishImu();
+    lastImuMs = millis();
+  }
 }
 
 void handle(const char* line) {
@@ -72,6 +94,25 @@ void handle(const char* line) {
   lastCmdMs = millis();
 
   // Optional: add debug prints if needed
+}
+
+void publishImu() {
+  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+  imu::Quaternion quat = bno.getQuat();
+
+  Serial.print("I,");
+  Serial.print(accel.x(), 6); Serial.print(',');
+  Serial.print(accel.y(), 6); Serial.print(',');
+  Serial.print(accel.z(), 6); Serial.print(',');
+  Serial.print(gyro.x(), 6);  Serial.print(',');
+  Serial.print(gyro.y(), 6);  Serial.print(',');
+  Serial.print(gyro.z(), 6);  Serial.print(',');
+  Serial.print(quat.w(), 6);  Serial.print(',');
+  Serial.print(quat.x(), 6);  Serial.print(',');
+  Serial.print(quat.y(), 6);  Serial.print(',');
+  Serial.print(quat.z(), 6);
+  Serial.println();
 }
 
 void stopMotors() {
