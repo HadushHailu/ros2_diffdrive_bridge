@@ -21,7 +21,7 @@ def generate_launch_description():
         DeclareLaunchArgument('port', default_value='/dev/ttyACM0'),
         DeclareLaunchArgument('baud', default_value='115200'),
         DeclareLaunchArgument('track_width', default_value='0.135'),
-        DeclareLaunchArgument('video_device', default_value='/dev/video50'),
+        DeclareLaunchArgument('video_device', default_value='/dev/video17'),
 
         # 1. IMU static TF publisher
         IncludeLaunchDescription(
@@ -30,10 +30,10 @@ def generate_launch_description():
             ),
         ),
 
-        # 2. Camera (includes camera TF)
+        # 2. Camera 30fps with usb_cam (MJPG decoding, includes camera TF)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                PathJoinSubstitution([pkg_share, 'launch', 'camera.launch.py'])
+                PathJoinSubstitution([pkg_share, 'launch', 'camera_30fps.launch.py'])
             ),
             launch_arguments={'video_device': video_device}.items(),
         ),

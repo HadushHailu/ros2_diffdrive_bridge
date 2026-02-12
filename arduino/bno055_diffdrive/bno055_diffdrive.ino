@@ -40,12 +40,12 @@ void setup() {
   delay(200);
   Serial.println("# Ready. Send: M,<L>,<R>  e.g. M,150,150");
 
-  // Use ACCGYRO mode for raw accel+gyro (no internal fusion)
-  // This is what VIO systems need - not NDOF which does internal fusion
-  imu_ok = bno.begin(Adafruit_BNO055::OPERATION_MODE_ACCGYRO);
+  // Use IMUPLUS mode for accel+gyro with fusion (no magnetometer)
+  // Good for VIO systems
+  imu_ok = bno.begin(OPERATION_MODE_IMUPLUS);
   if (imu_ok) {
     bno.setExtCrystalUse(true);
-    Serial.println("# BNO055 OK (ACCGYRO mode)");
+    Serial.println("# BNO055 OK (IMUPLUS mode)");
   } else {
     Serial.println("# BNO055 not detected");
   }
