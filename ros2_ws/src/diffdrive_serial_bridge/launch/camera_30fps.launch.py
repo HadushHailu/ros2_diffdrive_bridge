@@ -14,7 +14,7 @@ def generate_launch_description():
     camera_info_url = LaunchConfiguration('camera_info_url')
 
     return LaunchDescription([
-        DeclareLaunchArgument('video_device', default_value='/dev/video17'),
+        DeclareLaunchArgument('video_device', default_value='/dev/video49'),
         DeclareLaunchArgument('image_width', default_value='640'),
         DeclareLaunchArgument('image_height', default_value='480'),
         DeclareLaunchArgument('framerate', default_value='30.0'),
